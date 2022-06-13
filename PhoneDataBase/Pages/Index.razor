@@ -1,0 +1,182 @@
+﻿@page "/" 
+@inject IUserService UserServices; 
+
+<PageTitle>Data Base</PageTitle> 
+<style> @*Стиль для создания красивой таблицы*@
+    table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+<table>
+        <tr>
+            <td>ФИО</td>
+            <td><input @bind="InputFio"/></td>
+            <td>Email</td>
+            <td><input @bind="InputEmail"/></td>
+            <td>Номер телефона</td>
+            <td><input @bind="InputNumber"/></td>
+            <td>Отдел</td>
+            <td>
+            @if (Listdepartments != null && Listdepartments.Count > 0) @*Вывод списка отделов, если их количество больше нуля*@
+            {
+                <select @bind="ListId">
+                    @foreach (var uom in Listdepartments)
+                    {
+                        <option value="@uom.Id">@uom.DepartmentName</option>
+                    }
+                </select>
+            }</td>
+            <td>Позиция</td>
+            <td><input @bind="InputPosition"/></td>
+            @if (InputFio != "" && InputEmail != "" && InputNumber != 0) @*Если ячейки не пустые, разрешаем добавить пользователя*@
+            {
+                <td><button @onclick="AddUser" class="btn btn-success">+ Добавить</button></td>
+            }
+        </tr>
+</table>
+@if(users == null)
+{
+    <p>Идёт загрузка</p>
+}
+else{
+<table>
+    <tr>
+            <th>Id</th>
+            <th>Фио</th>
+            <th>Почта</th>
+            <th>Номер телефона</th>
+            <th>Отдел</th>
+            <th>Позиция</th>
+        </tr>
+    @foreach(var user in users){ @*Вывод пользователей*@
+        @if(user.StatusId == (int)Statuses.Working){
+    <tr>
+        <th> @user.Id</th>
+        <th> @user.Fio</th>
+        <th> @user.Email</th>
+        <th> @user.NumberPhone</th>
+        <th> @user.Department?.DepartmentName</th>
+        <th> @user.DepartmentPosition</th>
+        <td>
+                        <button @onclick="() => EditUser(user)" class="btn btn-warning"><i class="oi oi-pencil"></i> Редактировать</button>
+                        <button @onclick="() => DeleteUser(user)" class="btn btn-danger">- Удалить</button></td>
+    </tr>
+        }
+        else if(user.StatusId == (int)Statuses.Edit) @*Вывод редактируемого пользвателя*@
+        {
+            <tr>
+                <td>@user.Id</td>
+                <td><input @bind="EditFio"/></td>
+                <td><input @bind="EditEmail"/></td>
+                <td><input @bind="EditNumberPhone"/></td>
+                <td>
+                    @if (Listdepartments != null && Listdepartments.Count > 0)
+                    {
+                        <select @bind="EditId"> 
+                            @foreach (var dep in Listdepartments)
+                            {
+                                <option value="@dep.Id">@dep.DepartmentName</option>
+                            }
+                        </select>
+                    }
+                </td>
+                <td><input @bind="EditDepartmentPosition"/></td>
+                <td>
+                    <button @onclick="() => SaveUser(user)" class="btn btn-success"><i class="oi oi-flash"></i> Сохранить</button>
+                    <button @onclick="() => CancelUser(user)" class="btn btn-danger">Отмена</button>
+                    </td>
+            </tr>
+        }
+        else
+        {
+            <tr><td>Error</td></tr>
+        }
+    }
+</table>
+}
+
+@code
+{
+    public List<User> users;
+    public List<Department> Listdepartments;
+    public Department EditDepartment = null;
+
+    @*Переменные для ввода данных для новых пользвателей*@
+    public string InputFio{ get; set; }
+    public string InputEmail{ get; set; }
+    public long InputNumber{ get; set; }
+    public string InputPosition{ get; set; }
+
+    public long ListId { get; set; }
+    @*Переменные для редактирования*@
+    public string EditFio { get; set; }
+    public string EditEmail { get; set; }
+    public long EditNumberPhone { get; set; }
+    public string EditDepartmentPosition { get; set; }
+    public long EditId { get; set; }
+
+    
+    protected override async Task OnInitializedAsync() @*Инициализация*@
+    {
+        users = await UserServices.GetUsers();
+        Listdepartments = await UserServices.GetDepartments();
+    }
+    public void AddUser() @*Добавление нового пользователя*@
+    {
+        var department = Listdepartments.FirstOrDefault(t => t.Id == ListId);
+        var user = new User
+            {
+                Fio = InputFio,
+                Email = InputEmail,
+                NumberPhone = InputNumber,
+                DepartmentPosition = InputPosition,
+                Department = department,
+                StatusId = (int)Statuses.Working,
+            };
+        UserServices.Insert(user);
+        users.Add(user);
+        InputFio = ""; InputEmail = ""; InputNumber = 0; InputPosition = "";
+    }
+    public void DeleteUser(User user) @*Удаление пользователя*@
+    {
+        UserServices.Delete(user);
+        users.Remove(user);
+    }
+
+    public void SaveUser(User user) @*Сохранение данных после редактирования*@
+    {
+        user.Fio = EditFio;
+        user.Email = EditEmail;
+        user.NumberPhone = EditNumberPhone;
+        user.DepartmentPosition = EditDepartmentPosition;
+        //user.Department.Id = EditId;
+        user.StatusId = (int)Statuses.Working;
+        UserServices.Update(user);
+    }
+
+    public void EditUser(User user) @*Редактирование пользователя*@
+    {
+        users.ForEach(t => t.StatusId = (int)Statuses.Working);
+        user.StatusId = (int)Statuses.Edit;
+        EditFio = user.Fio;
+        EditEmail = user.Email;
+        EditNumberPhone = user.NumberPhone;
+        EditDepartmentPosition = user.DepartmentPosition;
+    }
+    public void CancelUser(User user) @*Отмена редактирования*@
+    {
+        user.StatusId = (int)Statuses.Working;
+    }
+}

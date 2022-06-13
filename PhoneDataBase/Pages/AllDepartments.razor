@@ -1,0 +1,105 @@
+﻿@page "/alldepartments"
+@inject IUserService UserServices;
+<PageTitle>All Departments</PageTitle>
+<style>
+    table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+<table>
+    <tr>
+            <td>Добавить новый отдел</td>
+            <td><input @bind="InputDepartmentName"/></td>
+            @if(InputDepartmentName !="")
+            {
+            <td><button @onclick="AddDepartments" class="btn btn-success">+</button></td>
+        }
+    </tr>
+</table>
+<table>
+    @if(Listdepartments != null && Listdepartments.Count > 0)
+    @foreach(var depp in Listdepartments)
+    {
+            @if (depp.StatusId == (int)Statuses.Working)
+            {
+                <tr>
+                    <td>@depp.DepartmentName</td>
+                    <td>
+                        <button @onclick="() => EditDepartments(depp)" class="btn btn-warning"><i class="oi oi-pencil"></i> Редактировать</button>
+                        <button @onclick="() => DeleteDepartments(depp)" class="btn btn-danger">- Удалить</button>
+                    </td>
+                </tr>
+            }
+            else if(depp.StatusId == (int)Statuses.Edit)
+            {
+                <tr>
+                    <td><input @bind="EditDepartmentName"></td>
+                    <td>
+                    <button @onclick="() => SaveDepartments(depp)" class="btn btn-success"><i class="oi oi-flash"></i> Сохранить</button>
+                    <button @onclick="() => CancelDepartments(depp)" class="btn btn-danger">Отмена</button>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                <tr><td>Error</td></tr>
+            }
+        }
+</table>
+@code
+{
+    public List<Department> Listdepartments;
+
+    public string InputDepartmentName {get;set;}
+
+    public string EditDepartmentName {get;set;}
+
+    protected override async Task OnInitializedAsync() @*Инициализация*@
+    {
+        Listdepartments = await UserServices.GetDepartments();
+    }
+    public void AddDepartments() @*Добавление нового отдела*@
+    {
+        var newdepp = new Department
+            {
+                DepartmentName = InputDepartmentName,
+                StatusId = (int)Statuses.Working,
+            };
+        UserServices.InsertDepartment(newdepp);
+        Listdepartments.Add(newdepp);
+        InputDepartmentName = "";
+    }
+    public void DeleteDepartments(Department depp) @*Удаление отдела*@
+    {
+        UserServices.DeleteDepartment(depp);
+        Listdepartments.Remove(depp);
+    }
+    public void EditDepartments(Department depp) @*Редактирование*@
+    {
+        Listdepartments.ForEach(t => t.StatusId = (int)Statuses.Working);
+        depp.StatusId = (int)Statuses.Edit;
+        EditDepartmentName = depp.DepartmentName;
+    }
+    public void SaveDepartments(Department depp) @*Сохранение данных после редактирования*@
+    {
+        depp.DepartmentName = EditDepartmentName;
+        depp.StatusId = (int)Statuses.Working;
+        UserServices.UpdateDepartment(depp);
+    }
+    public void CancelDepartments(Department depp) @*Отмена редактирования*@
+    {
+        depp.StatusId = (int)Statuses.Working;
+    }
+}

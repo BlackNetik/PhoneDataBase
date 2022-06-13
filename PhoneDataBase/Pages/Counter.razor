@@ -1,0 +1,128 @@
+﻿@page "/counter"
+@inject IUserService UserServices;
+<PageTitle>Deleted Users</PageTitle>
+<style>
+    table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+@if(DeletedUsers == null)
+{
+    <p>Идёт загрузка</p>
+}
+else{
+<table>
+    <tr>
+            <th>Id</th>
+            <th>Фио</th>
+            <th>Почта</th>
+            <th>Номер телефона</th>
+            <th>Отдел</th>
+            <th>Позиция</th>
+        </tr>
+    @foreach(var user in DeletedUsers){
+        @if(user.StatusId == (int)Statuses.Deleted){
+    <tr>
+        <th> @user.Id</th>
+        <th> @user.Fio</th>
+        <th> @user.Email</th>
+        <th> @user.NumberPhone</th>
+        <th> @user.Department?.DepartmentName</th>
+        <th> @user.DepartmentPosition</th>
+        <td>
+                        <button @onclick="() => EditUser(user)" class="btn btn-warning"><i class="oi oi-pencil"></i> Редактировать</button>
+                        <button @onclick="() => BackUser(user)" class="btn btn-success">- Вернуть</button></td>
+    </tr>
+        }
+        else if(user.StatusId == (int)Statuses.Edit)
+        {
+            <tr>
+                <td>@user.Id</td>
+                <td><input @bind="EditFio"/></td>
+                <td><input @bind="EditEmail"/></td>
+                <td><input @bind="EditNumberPhone"/></td>
+                <td>
+                    @if (Listdepartments != null && Listdepartments.Count > 0)
+                    {
+                        <select @bind="EditId"> 
+                            @foreach (var dep in Listdepartments)
+                            {
+                                <option value="@dep.Id">@dep.DepartmentName</option>
+                            }
+                        </select>
+                    }
+                </td>
+                <td><input @bind="EditDepartmentPosition"/></td>
+                <td>
+                    <button @onclick="() => SaveUser(user)" class="btn btn-success"><i class="oi oi-flash"></i> Сохранить</button>
+                    <button @onclick="() => CancelUser(user)" class="btn btn-danger">Отмена</button>
+                    </td>
+            </tr>
+        }
+        else
+        {
+            <tr><td>Error</td></tr>
+        }
+    }
+</table>
+}
+
+
+
+@code {
+    public List<User> DeletedUsers;
+    public List<Department> Listdepartments;
+
+    @*Переменные для редактирования*@
+    public string EditFio { get; set; }
+    public string EditEmail { get; set; }
+    public long EditNumberPhone { get; set; }
+    public string EditDepartmentPosition { get; set; }
+    public long EditId { get; set; }
+
+    protected override async Task OnInitializedAsync() @*Инициализация*@
+    {
+        DeletedUsers = await UserServices.GetDeletedUsers();
+        Listdepartments = await UserServices.GetDepartments();
+    }
+    public void BackUser(User user) @*Вернуть удалённого пользователя*@
+    {
+        UserServices.Back(user);
+    }
+
+    public void SaveUser(User user) @*Сохранить данные после редактирования*@
+    {
+        user.Fio = EditFio;
+        user.Email = EditEmail;
+        user.NumberPhone = EditNumberPhone;
+        user.DepartmentPosition = EditDepartmentPosition;
+        user.StatusId = (int)Statuses.Deleted;
+        UserServices.Update(user);
+    }
+
+    public void EditUser(User user) @*Редактировать удаленного пользователя*@
+    {
+        DeletedUsers.ForEach(t => t.StatusId = (int)Statuses.Deleted);
+        user.StatusId = (int)Statuses.Edit;
+        EditFio = user.Fio;
+        EditEmail = user.Email;
+        EditNumberPhone = user.NumberPhone;
+        EditDepartmentPosition = user.DepartmentPosition;
+    }
+    public void CancelUser(User user) @*Отменить редактирование*@
+    {
+        user.StatusId = (int)Statuses.Deleted;
+    }
+}
